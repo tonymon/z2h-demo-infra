@@ -1,0 +1,57 @@
+name: plan
+
+# Runs on pull requests. Read-only AWS role, no state lock, no changes possible.
+on:
+  pull_request:
+    paths:
+      - "demos/**"
+      - "modules/**"
+      - "bootstrap/**"
+      - ".github/workflows/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_expected_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+    defaults:
+      run:
+        working-directory: demos/bedrock-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Format check
+        run: terraform fmt -check -recursive
+        working-directory: .
+
+      - name: Policy-as-code scan (Checkov)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          # Start permissive so the first findings become content, then flip to false.
+          soft_fail: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PLAN_ARN }}
+          aws-region: us-east-1
+
+      - name: Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=demos/bedrock-agent/terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="use_lockfile=true"
+
+      - run: terraform validate
+
+      - name: Plan
+        run: terraform plan -lock=false -input=false -var="foundation_model=${{ vars.FOUNDATION_MODEL }}"
