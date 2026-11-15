@@ -123,7 +123,11 @@ data "aws_iam_policy_document" "apply_trust" {
 }
 
 # ------------------------------------------------------------------ plan role
-# Read-only. Used on pull requests. Cannot change anything.
+# Narrow, read-only. Used on pull requests. Cannot change anything and,
+# deliberately, cannot read application data (no DynamoDB, no S3 objects other
+# than the Terraform state, no Secrets Manager, no SES). It only sees what a
+# `terraform plan` of the demo stacks needs: Bedrock agent metadata, the
+# z2h-demo-* IAM roles, and the state file.
 
 resource "aws_iam_role" "plan" {
   name                 = "z2h-demo-gha-plan"
@@ -131,26 +135,49 @@ resource "aws_iam_role" "plan" {
   max_session_duration = 3600
 }
 
-resource "aws_iam_role_policy_attachment" "plan_readonly" {
-  role       = aws_iam_role.plan.name
-  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
-}
-
-data "aws_iam_policy_document" "plan_state" {
+data "aws_iam_policy_document" "plan" {
   statement {
+    sid       = "StateBucketList"
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.state.arn]
   }
   statement {
+    sid       = "StateObjectRead"
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.state.arn}/*"]
   }
+  statement {
+    sid = "BedrockMetadataRead"
+    actions = [
+      "bedrock:GetAgent",
+      "bedrock:GetAgentAlias",
+      "bedrock:ListAgents",
+      "bedrock:ListAgentAliases",
+      "bedrock:ListAgentVersions",
+      "bedrock:GetAgentVersion",
+      "bedrock:ListTagsForResource",
+      "bedrock:GetFoundationModel",
+      "bedrock:GetInferenceProfile",
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid = "DemoRoleRead"
+    actions = [
+      "iam:GetRole",
+      "iam:GetRolePolicy",
+      "iam:ListRolePolicies",
+      "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfilesForRole",
+    ]
+    resources = ["arn:aws:iam::${local.account_id}:role/z2h-demo-*"]
+  }
 }
 
-resource "aws_iam_role_policy" "plan_state" {
-  name   = "read-state"
+resource "aws_iam_role_policy" "plan" {
+  name   = "plan-read"
   role   = aws_iam_role.plan.id
-  policy = data.aws_iam_policy_document.plan_state.json
+  policy = data.aws_iam_policy_document.plan.json
 }
 
 # ----------------------------------------------------------------- apply role

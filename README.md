@@ -58,6 +58,25 @@ check with `allowed_account_ids`.
      `demo-reaper` (no reviewer).
 5. In AWS, enable access to your chosen model in us-east-1.
 
+## GitHub hardening checklist (do before the first run)
+
+- [ ] Two-factor authentication on the GitHub account (the real perimeter).
+- [ ] Settings > Code security: enable **secret scanning** and **push protection**.
+- [ ] Settings > Environments > `demo` and `demo-reaper`: restrict deployment
+      branches to `main` only. `demo` also needs a required reviewer.
+- [ ] Settings > Actions > General: *Require approval for all outside
+      collaborators*; workflow permissions = read-only by default.
+- [ ] Settings > Branches: protect `main` (require pull request before merging).
+- [ ] No deploy keys, no personal access tokens stored as secrets.
+
+## Least-privilege notes
+
+- The **plan** role (used on pull requests) can read only: the Terraform state
+  object, Bedrock agent metadata and the `z2h-demo-*` IAM roles. It cannot read
+  application data such as DynamoDB tables or other S3 objects.
+- The **apply** role can create and delete only Bedrock agents and IAM roles
+  named `z2h-demo-*`, and may pass them only to Bedrock.
+
 ## Recording a demo (the cost-receipt format)
 
 1. Open a PR touching `demos/` and show the plan and the Checkov output.
@@ -85,6 +104,7 @@ make down
   adding phone numbers or voice).
 - A dedicated AWS account for demos (via AWS Organizations) would be a better
   boundary than sharing the account that hosts the website.
-- Pin GitHub Actions to commit SHAs once the workflows settle.
+- Actions are pinned to commit SHAs; refresh them deliberately (Dependabot for
+  `github-actions` can open the PRs).
 - Keep this repo public-safe: no account IDs, no real client data, nothing tied
   to any employer.
