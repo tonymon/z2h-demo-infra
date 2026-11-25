@@ -23,10 +23,10 @@ whoami:
 
 .PHONY: bootstrap-plan bootstrap-apply
 bootstrap-plan: whoami
-	cd bootstrap && terraform init && terraform plan -var="expected_account_id=$(EXPECTED)" -var="budget_email=$(BUDGET_EMAIL)"
+	cd bootstrap && terraform init && terraform plan -var="aws_profile=$(PROFILE)" -var="expected_account_id=$(EXPECTED)" -var="budget_email=$(BUDGET_EMAIL)"
 
 bootstrap-apply: whoami
-	cd bootstrap && terraform init && terraform apply -var="expected_account_id=$(EXPECTED)" -var="budget_email=$(BUDGET_EMAIL)"
+	cd bootstrap && terraform init && terraform apply -var="aws_profile=$(PROFILE)" -var="expected_account_id=$(EXPECTED)" -var="budget_email=$(BUDGET_EMAIL)"
 
 define TF_INIT
 cd demos/$(DEMO) && terraform init -reconfigure \
