@@ -251,6 +251,14 @@ resource "aws_budgets_budget" "monthly" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
+  # Measure gross usage. With the default (credits included) the budget nets
+  # Free Plan credits against spend and reads ~$0 until the credits are gone,
+  # so the alarm would stay silent while the credits that keep the account
+  # open are being used up.
+  cost_types {
+    include_credit = false
+  }
+
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 80
